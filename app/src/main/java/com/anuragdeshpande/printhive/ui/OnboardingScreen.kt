@@ -19,13 +19,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -116,12 +120,17 @@ fun OnboardingScreen(
                 )
             } else if (page == slides.size - 1) {
                 ReadyOnboardingSlide(
-                    title = if (isServerConnected) slide.title else "One more thing...",
-                    description = slide.description,
-                    isServerConnected = isServerConnected,
-                    serverUrl = serverUrl,
-                    onFinish = onFinish,
-                )
+                   title = if (isServerConnected) "Server Connected!" else "Connect Your Server",
+                   description = if (isServerConnected) {
+                       "Your PrintHive app is paired and ready to control your 3D printer fleet."
+                   } else {
+                       "Scan the QR code displayed on your PrintHive server to connect instantly."
+                   },
+                   isServerConnected = isServerConnected,
+                   serverUrl = serverUrl,
+                   onNavigateToServerQr = onNavigateToServerQr,
+                   onFinish = onFinish,
+               )
             } else {
                 FeatureOnboardingSlide(
                     page = page,
@@ -281,6 +290,7 @@ private fun ReadyOnboardingSlide(
     description: String,
     isServerConnected: Boolean,
     serverUrl: String?,
+    onNavigateToServerQr: () -> Unit,
     onFinish: () -> Unit,
 ) {
     Column(
@@ -305,17 +315,19 @@ private fun ReadyOnboardingSlide(
             text = description,
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = 24.dp),
         )
 
+        Spacer(modifier = Modifier.height(24.dp))
+
         if (isServerConnected) {
-            Spacer(modifier = Modifier.height(16.dp))
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth(0.9f),
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -324,27 +336,48 @@ private fun ReadyOnboardingSlide(
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold,
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Server configuration available",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        textAlign = TextAlign.Start,
-                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Paired with PrintHive Server",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        serverUrl?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                            )
+                        }
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = onFinish,
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .height(52.dp),
-        ) {
-            Text("Get Started", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Button(
+                onClick = onFinish,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .height(52.dp),
+            ) {
+                Text("Get Started", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Button(
+                onClick = onNavigateToServerQr,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .height(52.dp),
+            ) {
+                Icon(Icons.Default.QrCodeScanner, contentDescription = null)
+                Spacer(modifier = Modifier.width(10.dp))
+                Text("Scan Server QR Code", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

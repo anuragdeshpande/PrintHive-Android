@@ -26,7 +26,6 @@ import com.anuragdeshpande.printhive.data.ServerPreferencesRepository
 import com.anuragdeshpande.printhive.network.PrintHiveServerDiscovery
 import com.anuragdeshpande.printhive.ui.OnboardingScreen
 import com.anuragdeshpande.printhive.ui.ServerQrScanScreen
-import com.anuragdeshpande.printhive.ui.ServerSetupScreen
 import com.anuragdeshpande.printhive.ui.theme.PrintHiveTheme
 import kotlinx.coroutines.launch
 
@@ -43,7 +42,6 @@ class MainActivity : ComponentActivity() {
 
                 val initialServerUrl by repository.serverUrlFlow.collectAsState(initial = ServerPreferencesRepository.DEFAULT_SERVER_URL)
                 val isPaired by repository.isPairedFlow.collectAsState(initial = false)
-                val discoveredServers by discovery.discoveredServers.collectAsState(initial = emptyList())
 
                 DisposableEffect(discovery) {
                     discovery.startDiscovery()
@@ -53,7 +51,6 @@ class MainActivity : ComponentActivity() {
                 var hasCompletedOnboarding by rememberSaveable { mutableStateOf(false) }
                 var showQrScanner by rememberSaveable { mutableStateOf(false) }
                 var serverUrl by rememberSaveable { mutableStateOf(initialServerUrl) }
-                var autoConnectUrl by rememberSaveable { mutableStateOf<String?>(null) }
 
                 LaunchedEffect(initialServerUrl, isPaired) {
                     serverUrl = initialServerUrl
@@ -69,10 +66,17 @@ class MainActivity : ComponentActivity() {
                     when {
                         showQrScanner -> {
                             ServerQrScanScreen(
-                                onQrScanned = { scannedUrl ->
-                                    serverUrl = scannedUrl
-                                    autoConnectUrl = scannedUrl
+                                onQrScanned = { payload ->
+                                    serverUrl = payload.url
                                     showQrScanner = false
+
+                                    scope.launch {
+                                        repository.saveServerUrl(payload.url)
+                                        payload.apiKey?.let { key ->
+                                            repository.saveApiKey(key)
+                                        }
+                                        repository.setPaired(true)
+                                    }
                                 },
                                 onClose = {
                                     showQrScanner = false
@@ -83,32 +87,12 @@ class MainActivity : ComponentActivity() {
                         !hasCompletedOnboarding -> {
                             OnboardingScreen(
                                 onNavigateToServerQr = {
-                                    hasCompletedOnboarding = true
                                     showQrScanner = true
                                 },
                                 isServerConnected = isPaired && serverUrl.isNotBlank(),
                                 serverUrl = serverUrl,
                                 onFinish = {
                                     hasCompletedOnboarding = true
-                                },
-                            )
-                        }
-
-                        !isPaired -> {
-                            ServerSetupScreen(
-                                initialUrl = serverUrl,
-                                discoveredServers = discoveredServers,
-                                autoConnectUrl = autoConnectUrl,
-                                onOpenQrScanner = {
-                                    showQrScanner = true
-                                },
-                                onConnectSuccess = { connectedUrl ->
-                                    serverUrl = connectedUrl
-                                    autoConnectUrl = null
-                                    scope.launch {
-                                        repository.saveServerUrl(connectedUrl)
-                                        repository.setPaired(true)
-                                    }
                                 },
                             )
                         }

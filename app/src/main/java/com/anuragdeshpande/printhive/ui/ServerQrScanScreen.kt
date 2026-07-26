@@ -53,9 +53,14 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
 
+data class QrConnectionPayload(
+    val url: String,
+    val apiKey: String? = null,
+)
+
 @Composable
 fun ServerQrScanScreen(
-    onQrScanned: (String) -> Unit,
+    onQrScanned: (QrConnectionPayload) -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -140,7 +145,7 @@ fun ServerQrScanScreen(
                                     Log.d("PrintHiveScanner", "QR scan received: $scannedRaw")
                                     hasScanned = true
                                     triggerSuccessVibration()
-                                    onQrScanned(extractServerUrl(scannedRaw))
+                                    onQrScanned(parseQrPayload(scannedRaw))
                                 }
                             } else {
                                 imageProxy.close()
@@ -212,14 +217,20 @@ fun ServerQrScanScreen(
     }
 }
 
-private fun extractServerUrl(raw: String): String {
+private fun parseQrPayload(raw: String): QrConnectionPayload {
     val trimmed = raw.trim()
-    return when {
-        trimmed.startsWith("printhive://connect?url=") -> {
-            Uri.parse(trimmed).getQueryParameter("url") ?: trimmed.removePrefix("printhive://connect?url=")
-        }
-        trimmed.startsWith("printhive://") -> trimmed.replace("printhive://", "http://")
-        else -> trimmed
+    if (trimmed.startsWith("printhive://connect")) {
+        val uri = Uri.parse(trimmed)
+        val url = uri.getQueryParameter("url") ?: "http://192.168.1.102:8000"
+        val key = uri.getQueryParameter("key") ?: uri.getQueryParameter("token")
+        return QrConnectionPayload(url = url.removeSuffix("/"), apiKey = key)
+    } else if (trimmed.contains("?token=") || trimmed.contains("?key=")) {
+        val uri = Uri.parse(trimmed)
+        val key = uri.getQueryParameter("token") ?: uri.getQueryParameter("key")
+        val cleanUrl = trimmed.substringBefore("?").removeSuffix("/")
+        return QrConnectionPayload(url = cleanUrl, apiKey = key)
+    } else {
+        return QrConnectionPayload(url = trimmed.removeSuffix("/"))
     }
 }
 
